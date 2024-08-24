@@ -41,7 +41,7 @@ export async function POST(req) {
           return NextResponse.json(checkoutSession, {
             status: 200,
           })
-          
+
     } catch (error) {
         console.error('Error creating checkout_session:', error)
         return new NextResponse(JSON.stringify({ error: { message: error.message } }), {
@@ -49,3 +49,26 @@ export async function POST(req) {
         })
     }
 }
+
+// 1. It extracts the `session_id` from the query parameters of the request.
+// 2. If no `session_id` is provided, it throws an error.
+// 3. It uses the Stripe API to retrieve the checkout session details.
+// 4. It returns the session details as a JSON response.
+// 5. If an error occurs, it returns a 500 status code with the error message.
+export async function GET(req) {
+    const searchParams = req.nextUrl.searchParams
+    const session_id = searchParams.get('session_id')
+  
+    try {
+      if (!session_id) {
+        throw new Error('Session ID is required')
+      }
+  
+      const checkoutSession = await stripe.checkout.sessions.retrieve(session_id)
+  
+      return NextResponse.json(checkoutSession)
+    } catch (error) {
+      console.error('Error retrieving checkout session:', error)
+      return NextResponse.json({ error: { message: error.message } }, { status: 500 })
+    }
+  }
