@@ -12,13 +12,18 @@ import {
 export default function Generate() {
   const [text, setText] = useState('')
   const [flashcards, setFlashcards] = useState([])
+  const [setName, setSetName] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  // This function does:
-  // 1. It checks if the input text is empty and shows an alert if it is.
-  // 2. It sends a POST request to our `/api/generate` endpoint with the input text.
-  // 3. If the response is successful, it updates the `flashcards` state with the generated data.
-  // 4. If an error occurs, it logs the error and shows an alert to the user.
-  const handleSubmit = async () => {
+  //functions to handle opening and closing the dialog
+  const handleOpenDialog = () => setDialogOpen(true)
+  const handleCloseDialog = () => setDialogOpen(false)
+
+    // This function does:
+    // 1. It checks if the input text is empty and shows an alert if it is.
+    // 2. It sends a POST request to our `/api/generate` endpoint with the input text.
+    // 3. If the response is successful, it updates the `flashcards` state with the generated data.
+    // 4. If an error occurs, it logs the error and shows an alert to the user.
     // call API and generate flashcards
     const handleSubmit = async () => {
       if (!text.trim()) {
@@ -43,9 +48,43 @@ export default function Generate() {
         alert('An error occurred while generating flashcards. Please try again.')
       }
     }
-  }
 
+    // implement the function to save flashcards to Firebase
+    const saveFlashcards = async () => {
+      if (!setName.trim()) {
+        alert('Please enter a name for your flashcard set.')
+        return
+      }
+    
+      try {
+        const userDocRef = doc(collection(db, 'users'), user.id)
+        const userDocSnap = await getDoc(userDocRef)
+    
+        const batch = writeBatch(db)
+    
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data()
+          const updatedSets = [...(userData.flashcardSets || []), { name: setName }]
+          batch.update(userDocRef, { flashcardSets: updatedSets })
+        } else {
+          batch.set(userDocRef, { flashcardSets: [{ name: setName }] })
+        }
+    
+        const setDocRef = doc(collection(userDocRef, 'flashcardSets'), setName)
+        batch.set(setDocRef, { flashcards })
+    
+        await batch.commit()
+    
+        alert('Flashcards saved successfully!')
+        handleCloseDialog()
+        setSetName('')
+      } catch (error) {
+        console.error('Error saving flashcards:', error)
+        alert('An error occurred while saving flashcards. Please try again.')
+      }
+    }
 
+    
   return (
     <Container maxWidth="md">
       <Box sx={{ my: 4 }}>
@@ -73,7 +112,6 @@ export default function Generate() {
       </Box>
       
       {/* We'll add flashcard display here */}
-
       {flashcards.length > 0 && (
         <Box sx={{ mt: 4 }}>
           <Typography variant="h5" component="h2" gutterBottom>
@@ -93,6 +131,15 @@ export default function Generate() {
               </Grid>
             ))}
           </Grid>
+        </Box>
+      )}
+
+      {/* Button to save flashcards */}
+      {flashcards.length > 0 && (
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+          <Button variant="contained" color="primary" onClick={handleOpenDialog}>
+            Save Flashcards
+          </Button>
         </Box>
       )}
     </Container>
